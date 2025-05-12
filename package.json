@@ -1,0 +1,26 @@
+{
+  "name": "newmydiscordbot",
+  "module": "./src/index.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "nodemon ./src/index.js",
+    "start" : "bun --watch ./src/index.js"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "canvacord": "^6.0.2",
+    "discord.js": "^14.19.3",
+    "dotenv": "^16.5.0",
+    "mongoose": "^8.14.2",
+    "musicard": "^2.0.5",
+    "nodemon": "^3.1.10",
+    "riffy": "^1.0.7-rc.2"
+  }
+}
