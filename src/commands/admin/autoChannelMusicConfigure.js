@@ -1,10 +1,10 @@
-import { ApplicationCommandOptionType, Client, CommandInteraction, PermissionFlagsBits } from 'discord.js';
+import { ApplicationCommandOptionType, Client, CommandInteraction, MessageComponentInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 
 export default {
   callback: async ({ client, eventArg, db: { mongoose } }) => {
     if (!eventArg.inGuild()) {
       // Use deferReply first if you might need to do async operations
-      await eventArg.deferReply({ ephemeral: true });
+      await eventArg.deferReply({flags : MessageFlags.Ephemeral});
       await eventArg.editReply('You can only run this command inside a server.');
       return;
     }

@@ -24,7 +24,9 @@ export default {
     const enabled = eventArg.options.get("enabled")?.value ?? true; // Default to true
 
     try {
-      await eventArg.deferReply();
+      if (!eventArg.replied && !eventArg.deferred) {
+        await eventArg.deferReply();
+      }
 
       // Fetch or initialize AI channel configuration and conversation history
       const [aiChannelConfig, aiConversation] = await Promise.all([

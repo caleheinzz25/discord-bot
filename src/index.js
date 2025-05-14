@@ -21,7 +21,7 @@ const client = new Client({
       IntentsBitField.Flags.GuildMessageReactions,
       IntentsBitField.Flags.DirectMessages,
       IntentsBitField.Flags.GuildVoiceStates, 
-    ]
+    ],
   });
 
 client.modelGemini = model;
@@ -32,6 +32,8 @@ client.riffy = new Riffy(client, lavaLink, {
     if (guild) guild.shard.send(payload);
   },
   defaultSearchPlatform: "ytmsearch",
+  reconnectTries: 10000,
+
   restVersion: "v4", // Or "v3" based on your Lavalink version.
 })
 

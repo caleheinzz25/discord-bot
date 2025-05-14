@@ -4,6 +4,9 @@ export const jancu = async ({ client, eventArg, db }) => {
     if (eventArg.author.bot) return; // Ignore bot messages
 
     try {
+        // Check if the bot was mentioned
+        const botMentioned = eventArg.mentions.has(client.user.id);
+        
         // Ensure guild_id is present
         const guildId = eventArg.guildId;
         if (!guildId) {
@@ -16,9 +19,17 @@ export const jancu = async ({ client, eventArg, db }) => {
             db.mongoose.AIConversation.findOne({ channel_id: eventArg.channel.id, guild_id: guildId }),
         ]);
 
-        if (!channelConfig) return; // If the channel is not configured, silently exit
+        // If the channel is not configured but bot is mentioned, proceed with default settings
+        if (!channelConfig && !botMentioned) return;
+        
+        // If bot is mentioned but channel is not configured, use default settings
+        const aiConfig = channelConfig || {
+            ai_enabled: true,
+            ai_name: client.user.username, // Use bot's username as default
+            ai_description: `I am ${client.user.username}, a helpful AI assistant.` // Default description
+        };
 
-        if (!channelConfig.ai_enabled) {
+        if (!aiConfig.ai_enabled && !botMentioned) {
             return eventArg.channel.send("❌ AI is not active. Use `/ai-channel-enable` to activate.");
         }
 
@@ -28,6 +39,11 @@ export const jancu = async ({ client, eventArg, db }) => {
             conversationHistory = []; // Reset the conversation history if it exceeds 35 messages
         }
 
+        // Remove the bot mention from the message content if present
+        const userMessage = botMentioned 
+            ? eventArg.content.replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '').trim()
+            : eventArg.content;
+
         // Start chat with Gemini AI
         const chat = client.modelGemini.startChat({
             history: [
@@ -35,7 +51,7 @@ export const jancu = async ({ client, eventArg, db }) => {
                     role: "user",
                     parts: [
                         {
-                            text: `${channelConfig.ai_description} and named you ${channelConfig.ai_name}. Avoid describing reactions.`,
+                            text: `${aiConfig.ai_description} and named you ${aiConfig.ai_name}.`,
                         },
                     ],
                 },
@@ -48,9 +64,9 @@ export const jancu = async ({ client, eventArg, db }) => {
         });
 
         // Send user input to AI and get the response
-        const result = await chat.sendMessage(eventArg.content, {
-            aiName: channelConfig.ai_name,
-            aiDescription: channelConfig.ai_description,
+        const result = await chat.sendMessage(userMessage, {
+            aiName: aiConfig.ai_name,
+            aiDescription: aiConfig.ai_description,
         });
 
         if (!result || !result.response) {
@@ -59,27 +75,29 @@ export const jancu = async ({ client, eventArg, db }) => {
 
         const aiResponse = result.response.text();
 
-        // Update the conversation in the database
-        if (AIConversation) {
-            AIConversation.conversation.push(
-                { role: "user", parts: [{ text: eventArg.content }] },
-                { role: "model", parts: [{ text: aiResponse }] }
-            );
-            await AIConversation.save();
-        } else {
-            await db.mongoose.AIConversation.create({
-                channel_id: eventArg.channel.id,
-                guild_id: guildId, // Ensure guild_id is saved
-                conversation: [
-                    { role: "user", parts: [{ text: eventArg.content }] },
-                    { role: "model", parts: [{ text: aiResponse }] },
-                ],
-            });
+        // Update the conversation in the database (only if it's a configured channel)
+        if (channelConfig) {
+            if (AIConversation) {
+                AIConversation.conversation.push(
+                    { role: "user", parts: [{ text: userMessage }] },
+                    { role: "model", parts: [{ text: aiResponse }] }
+                );
+                await AIConversation.save();
+            } else {
+                await db.mongoose.AIConversation.create({
+                    channel_id: eventArg.channel.id,
+                    guild_id: guildId,
+                    conversation: [
+                        { role: "user", parts: [{ text: userMessage }] },
+                        { role: "model", parts: [{ text: aiResponse }] },
+                    ],
+                });
+            }
         }
 
         // Create and send an embed message
         const embed = new EmbedBuilder()
-            .setTitle(`💡 ${channelConfig.ai_name}`)
+            .setTitle(`💡 ${aiConfig.ai_name}`)
             .setDescription(`${aiResponse}\n\n- Asked by **${eventArg.author.username}**`)
             .setColor("#00FF99")
             .setTimestamp();
